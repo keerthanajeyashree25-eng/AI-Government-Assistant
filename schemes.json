@@ -1,0 +1,58 @@
+[
+  {
+    "id": "SCH001",
+    "name": "National Merit Scholarship for Higher Education",
+    "department": "Ministry of Education",
+    "category": "education",
+    "state": "ALL",
+    "description": "Financial assistance for meritorious students from economically weaker sections pursuing undergraduate or postgraduate studies.",
+    "benefits": "Up to ₹12,000 per annum for tuition and maintenance allowance.",
+    "documents_required": ["Aadhaar Card", "Income Certificate", "Bonafide Certificate", "Bank Passbook", "Latest Marksheet"],
+    "application_procedure": "Apply online via the National Scholarship Portal (NSP) with required documents. Applications are verified by the institution before final approval.",
+    "deadline": "31 October (annual)",
+    "official_source": "https://scholarships.gov.in",
+    "source_date": "2026-04-01",
+    "eligibility_criteria": [
+      {"field": "is_student", "op": "==", "value": true, "label": "Must be a currently enrolled student"},
+      {"field": "annual_family_income", "op": "<=", "value": 250000, "label": "Annual family income must not exceed ₹2,50,000"},
+      {"field": "min_marks_percent", "op": ">=", "value": 60, "label": "Must have scored at least 60% in the previous qualifying exam"}
+    ]
+  },
+  {
+    "id": "SCH002",
+    "name": "Rural Housing Assistance Scheme",
+    "department": "Ministry of Rural Development",
+    "category": "housing",
+    "state": "ALL",
+    "description": "Financial support to rural households for construction or renovation of a pucca house.",
+    "benefits": "Up to ₹1,20,000 in plains and ₹1,30,000 in hilly/difficult areas, disbursed in installments.",
+    "documents_required": ["Aadhaar Card", "Income Certificate", "Land/Ownership Document", "Bank Passbook", "Passport Size Photograph"],
+    "application_procedure": "Apply through the local Gram Panchayat office or the official rural housing portal. A field verification is conducted before approval.",
+    "deadline": "Rolling / no fixed deadline",
+    "official_source": "https://rhs.gov.in",
+    "source_date": "2026-02-15",
+    "eligibility_criteria": [
+      {"field": "residence_type", "op": "==", "value": "rural", "label": "Applicant must reside in a rural area"},
+      {"field": "annual_family_income", "op": "<=", "value": 180000, "label": "Annual family income must not exceed ₹1,80,000"},
+      {"field": "owns_pucca_house", "op": "==", "value": false, "label": "Applicant must not already own a pucca house"}
+    ]
+  },
+  {
+    "id": "SCH003",
+    "name": "Disability Support Pension",
+    "department": "Ministry of Social Justice and Empowerment",
+    "category": "social_welfare",
+    "state": "ALL",
+    "description": "Monthly pension for persons with permanent disability who are unable to earn a livelihood.",
+    "benefits": "₹1,500 per month, credited directly to the beneficiary's bank account.",
+    "documents_required": ["Aadhaar Card", "Disability Certificate", "Income Certificate", "Bank Passbook"],
+    "application_procedure": "Apply at the district social welfare office or via the state e-governance portal with a valid disability certificate.",
+    "deadline": "Rolling / no fixed deadline",
+    "official_source": "https://socialjustice.gov.in",
+    "source_date": "2026-01-10",
+    "eligibility_criteria": [
+      {"field": "has_disability_certificate", "op": "==", "value": true, "label": "Must hold a valid disability certificate (≥40% disability)"},
+      {"field": "annual_family_income", "op": "<=", "value": 200000, "label": "Annual family income must not exceed ₹2,00,000"}
+    ]
+  }
+]
