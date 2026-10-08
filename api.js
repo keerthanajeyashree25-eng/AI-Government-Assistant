@@ -1,4 +1,17 @@
-const BASE_URL = "http://127.0.0.1:8000";
+const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") ||
+  (import.meta.env.DEV
+    ? "http://127.0.0.1:8000"
+    : "https://ai-government-assistant.onrender.com");
+
+function apiUrl(path) {
+  if (!BASE_URL) {
+    throw new Error(
+      "Backend API is not configured. Set VITE_API_BASE_URL to the deployed API URL."
+    );
+  }
+  return `${BASE_URL}${path}`;
+}
 
 async function handle(res) {
   if (!res.ok) {
@@ -10,7 +23,7 @@ async function handle(res) {
 
 export const api = {
   chat: (message, sessionId) =>
-    fetch(`${BASE_URL}/api/chat`, {
+    fetch(apiUrl("/api/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, session_id: sessionId }),
@@ -21,25 +34,25 @@ export const api = {
     if (q) params.set("q", q);
     if (state) params.set("state", state);
     const qs = params.toString();
-    return fetch(`${BASE_URL}/api/schemes${qs ? `?${qs}` : ""}`).then(handle);
+    return fetch(apiUrl(`/api/schemes${qs ? `?${qs}` : ""}`)).then(handle);
   },
 
   checkEligibility: (profile, schemeId) =>
-    fetch(`${BASE_URL}/api/eligibility`, {
+    fetch(apiUrl("/api/eligibility"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile, scheme_id: schemeId || null }),
     }).then(handle),
 
   fileGrievance: (category, summary, priority) =>
-    fetch(`${BASE_URL}/api/grievance`, {
+    fetch(apiUrl("/api/grievance"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ category, summary, priority }),
     }).then(handle),
 
   trackGrievance: (ticketId) =>
-    fetch(`${BASE_URL}/api/grievance/${encodeURIComponent(ticketId)}`).then(handle),
+    fetch(apiUrl(`/api/grievance/${encodeURIComponent(ticketId)}`)).then(handle),
 
   analyzeDocument: async (file) => {
     const formData = new FormData();
@@ -47,9 +60,10 @@ export const api = {
 
     console.log("Uploading document:", file.name);
     console.log("File size:", file.size);
-    console.log("API URL:", `${BASE_URL}/api/analyze-document`);
+    const url = apiUrl("/api/analyze-document");
+    console.log("API URL:", url);
 
-    const response = await fetch(`${BASE_URL}/api/analyze-document`, {
+    const response = await fetch(url, {
       method: "POST",
       body: formData,
     });
