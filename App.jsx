@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { GoogleLogin } from "@react-oauth/google";
-import { api } from "./api.js";
 import Sidebar from "./Sidebar.jsx";
 import Home from "./Home.jsx";
 import Chat from "./Chat.jsx";
@@ -12,7 +10,7 @@ import TrackApplication from "./TrackApplication.jsx";
 import FileGrievance from "./FileGrievance.jsx";
 import { LANGUAGES, t } from "./i18n.js";
 
-function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
+function LoginPage({ onLogin, lang, setLang }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,8 +47,6 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
       passwordPlaceholder: "Enter your password",
       signInAction: "Sign in",
       signUpAction: "Sign up",
-      or: "OR",
-      google: "Continue with Google",
       legal: "By continuing you agree to our Terms & Privacy Policy.",
       required: "Please fill in all required fields.",
       invalidEmail: "Please enter a valid email address.",
@@ -85,8 +81,6 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
       passwordPlaceholder: "अपना पासवर्ड दर्ज करें",
       signInAction: "साइन इन",
       signUpAction: "साइन अप",
-      or: "या",
-      google: "Google से जारी रखें",
       legal: "जारी रखकर आप हमारी नियम एवं गोपनीयता नीति से सहमत होते हैं।",
       required: "कृपया सभी आवश्यक फ़ील्ड भरें।",
       invalidEmail: "कृपया सही ईमेल पता दर्ज करें।",
@@ -121,8 +115,6 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
       passwordPlaceholder: "உங்கள் கடவுச்சொல்லை உள்ளிடவும்",
       signInAction: "உள்நுழையவும்",
       signUpAction: "பதிவு செய்யவும்",
-      or: "அல்லது",
-      google: "Google உடன் தொடரவும்",
       legal: "தொடர்வதன் மூலம் நீங்கள் எங்கள் விதிமுறைகள் மற்றும் தனியுரிமைக் கொள்கையை ஏற்கிறீர்கள்.",
       required: "குழந்தை, அனைத்து தேவையான புலங்களையும் நிரப்பவும்.",
       invalidEmail: "சரியான மின்னஞ்சல் முகவரியை உள்ளிடவும்.",
@@ -159,18 +151,6 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
 
     setError("");
     onLogin(email.trim(), authMode, fullName.trim());
-  }
-
-  function handleGoogleSuccess(response) {
-    if (!response.credential) {
-      setError("Google did not return a sign-in credential. Please try again.");
-      return;
-    }
-
-    setError("");
-    onGoogleLogin(response.credential).catch((authError) => {
-      setError(authError.message || "Google sign-in failed. Please try again.");
-    });
   }
 
   return (
@@ -315,25 +295,6 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
               </button>
             </form>
 
-            <div className="separator">{text.or}</div>
-
-            {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setError("Google sign-in failed. Please try again.")}
-                text="continue_with"
-                shape="rectangular"
-                width="360"
-              />
-            ) : (
-              <button
-                type="button"
-                className="google-btn"
-                onClick={() => setError("Google sign-in is not configured. Set VITE_GOOGLE_CLIENT_ID in Vercel.")}
-              >
-                {text.google}
-              </button>
-            )}
             <p className="terms">{text.legal}</p>
           </div>
         </div>
@@ -369,12 +330,6 @@ export default function App() {
     console.log(`${mode === "signup" ? "Signed up" : "Logged in"} as:`, fullName || email);
   }
 
-  async function handleGoogleLogin(credential) {
-    await api.googleLogin(credential);
-    setIsLoggedIn(true);
-    setPage("home");
-  }
-
   function handleExit() {
     setIsLoggedIn(false);
     setPage("exit");
@@ -394,7 +349,7 @@ export default function App() {
   }
 
   if (!isLoggedIn && page === "login") {
-    return <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} lang={lang} setLang={setLang} />;
+    return <LoginPage onLogin={handleLogin} lang={lang} setLang={setLang} />;
   }
 
   if (!isLoggedIn && page === "exit") {

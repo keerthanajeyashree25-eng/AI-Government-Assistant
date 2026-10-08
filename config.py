@@ -19,7 +19,6 @@ _load_env_file()
 
 # Set GEMINI_API_KEY in your environment or local .env file.
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GEMINI_MODELS = [
     model.strip()
     for model in os.environ.get(

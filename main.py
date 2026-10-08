@@ -3,15 +3,12 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from google.auth.transport import requests as google_auth_requests
 from google.genai.errors import APIError
-from google.oauth2 import id_token
 from pydantic import BaseModel
 
 from orchestrator import analyze_uploaded_document, chat as run_chat, kb
 from eligibility_engine import evaluate_eligibility
 from grievance_agent import create_ticket, get_ticket
-from config import GOOGLE_CLIENT_ID
 
 app = FastAPI(title="AI Government Assistant API")
 
@@ -35,32 +32,6 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     session_id: str
     reply: str
-
-
-class GoogleLoginRequest(BaseModel):
-    credential: str
-
-
-@app.post("/api/auth/google")
-def google_login(req: GoogleLoginRequest):
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=503, detail="Google sign-in is not configured on the server")
-
-    try:
-        claims = id_token.verify_oauth2_token(
-            req.credential, google_auth_requests.Request(), GOOGLE_CLIENT_ID
-        )
-    except ValueError as error:
-        raise HTTPException(status_code=401, detail="Google sign-in token is invalid or expired") from error
-
-    if not claims.get("email_verified"):
-        raise HTTPException(status_code=401, detail="Google account email is not verified")
-
-    return {
-        "id": claims["sub"],
-        "email": claims["email"],
-        "name": claims.get("name", ""),
-    }
 
 
 @app.post("/api/chat", response_model=ChatResponse)

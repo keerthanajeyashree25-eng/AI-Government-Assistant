@@ -22,13 +22,6 @@ async function handle(res) {
 }
 
 export const api = {
-  googleLogin: (credential) =>
-    fetch(apiUrl("/api/auth/google"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ credential }),
-    }).then(handle),
-
   chat: (message, sessionId) =>
     fetch(apiUrl("/api/chat"), {
       method: "POST",
