@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
+import { api } from "./api.js";
 import Sidebar from "./Sidebar.jsx";
 import Home from "./Home.jsx";
 import Chat from "./Chat.jsx";
@@ -159,9 +161,16 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
     onLogin(email.trim(), authMode, fullName.trim());
   }
 
-  function handleGoogleContinue() {
+  function handleGoogleSuccess(response) {
+    if (!response.credential) {
+      setError("Google did not return a sign-in credential. Please try again.");
+      return;
+    }
+
     setError("");
-    onGoogleLogin();
+    onGoogleLogin(response.credential).catch((authError) => {
+      setError(authError.message || "Google sign-in failed. Please try again.");
+    });
   }
 
   return (
@@ -308,9 +317,23 @@ function LoginPage({ onLogin, onGoogleLogin, lang, setLang }) {
 
             <div className="separator">{text.or}</div>
 
-            <button type="button" className="google-btn" onClick={handleGoogleContinue}>
-              {text.google}
-            </button>
+            {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError("Google sign-in failed. Please try again.")}
+                text="continue_with"
+                shape="rectangular"
+                width="360"
+              />
+            ) : (
+              <button
+                type="button"
+                className="google-btn"
+                onClick={() => setError("Google sign-in is not configured. Set VITE_GOOGLE_CLIENT_ID in Vercel.")}
+              >
+                {text.google}
+              </button>
+            )}
             <p className="terms">{text.legal}</p>
           </div>
         </div>
@@ -346,35 +369,10 @@ export default function App() {
     console.log(`${mode === "signup" ? "Signed up" : "Logged in"} as:`, fullName || email);
   }
 
-  function handleGoogleLogin() {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const googleWindow = window.open(
-        "https://accounts.google.com/",
-        "googleSignin",
-        "width=520,height=680,noopener,noreferrer"
-      );
-
-      if (googleWindow) {
-        googleWindow.opener = null;
-        const waitForGoogleLogin = setInterval(() => {
-          if (googleWindow.closed) {
-            clearInterval(waitForGoogleLogin);
-            setIsLoggedIn(true);
-            setPage("home");
-            console.log("Logged in with Google");
-          }
-        }, 500);
-        return;
-      }
-    } catch (err) {
-      console.warn("Google sign-in popup was blocked:", err);
-    }
-
-    console.log("Google sign-in popup blocked or unavailable; login was not completed.");
+  async function handleGoogleLogin(credential) {
+    await api.googleLogin(credential);
+    setIsLoggedIn(true);
+    setPage("home");
   }
 
   function handleExit() {
