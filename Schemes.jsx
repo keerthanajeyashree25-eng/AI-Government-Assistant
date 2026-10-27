@@ -321,6 +321,165 @@ function matchesFilterValues(selectedValues, value) {
   return selectedValues.includes(value);
 }
 
+function getAgeRange(value) {
+  const text = String(value || "").toLowerCase().replace(/_/g, " ");
+  const range = text.match(/(\d{1,3})\s*(?:to|and|-|–)\s*(\d{1,3})/);
+  if (range) return [Number(range[1]), Number(range[2])];
+
+  const under = text.match(/(?:under|below|less than)\s*(\d{1,3})/);
+  if (under) return [0, Number(under[1]) - 1];
+
+  const over = text.match(/(?:above|over)\s*(\d{1,3})/);
+  if (over) return [Number(over[1]) + 1, Infinity];
+
+  const plus = text.match(/(\d{1,3})\s*\+/);
+  if (plus) return [Number(plus[1]), Infinity];
+
+  return null;
+}
+
+const AGE_GROUP_RANGES = [[0, 17], [18, 25], [26, 40], [41, 60], [60, Infinity]];
+
+function matchesAgeFilters(scheme, selectedValues, options) {
+  if (!selectedValues.length) return true;
+
+  const criteria = [
+    ...(Array.isArray(scheme.age_criteria) ? scheme.age_criteria : []),
+    ...(scheme.eligibility_criteria || []).filter((item) =>
+      /age/i.test(`${item.field || ""} ${item.label || ""}`)
+    ),
+  ];
+  const schemeRanges = criteria
+    .map((item) => getAgeRange(typeof item === "string" ? item : `${item.field || ""} ${item.range || ""} ${item.label || ""} ${item.value ?? ""}`))
+    .filter(Boolean);
+
+  // Missing age data is unknown, not proof that a scheme is unsuitable.
+  if (!schemeRanges.length) return true;
+
+  const selectedRanges = options.reduce((ranges, option, index) => {
+    if (selectedValues.includes(option)) ranges.push(getAgeRange(option) || AGE_GROUP_RANGES[index]);
+    return ranges;
+  }, []);
+
+  if (!selectedRanges.length) return true;
+
+  return selectedRanges.some(([selectedMin, selectedMax]) =>
+    schemeRanges.some(([schemeMin, schemeMax]) => selectedMin <= schemeMax && schemeMin <= selectedMax)
+  );
+}
+
+function matchesGenderFilters(scheme, selectedValues, options) {
+  if (!selectedValues.length || selectedValues.includes(options[2])) return true;
+
+  const criteria = (scheme.eligibility_criteria || []).filter((item) =>
+    /gender|sex|\bfemale\b|\bmale\b|\bwomen\b|women_|\bwoman\b|woman_|\bgirl\b|\bmen\b|\bman\b|\bboy\b/i.test(`${item.field || ""} ${item.label || ""} ${item.value ?? ""}`)
+  );
+
+  // Only enforce gender when the scheme data explicitly specifies it.
+  if (!criteria.length) return true;
+
+  const selectedIndexes = options.reduce((indexes, option, index) => {
+    if (selectedValues.includes(option) && index < 2) indexes.push(index);
+    return indexes;
+  }, []);
+
+  return criteria.some((item) => {
+    const text = `${item.field || ""} ${item.label || ""} ${item.value ?? ""}`;
+    const allowsFemale = /female|women|woman|girl/i.test(text);
+    const allowsMale = /\bmale\b|\bmen\b|\bman\b|\bboy\b/i.test(text);
+    if (!allowsFemale && !allowsMale) return true;
+    return selectedIndexes.some((index) => (index === 0 ? allowsMale : allowsFemale));
+  });
+}
+
+function matchesIncomeFilters(scheme, selectedValues, options) {
+  if (!selectedValues.length) return true;
+
+  const criteria = (scheme.eligibility_criteria || []).filter((item) =>
+    /income/i.test(`${item.field || ""} ${item.label || ""}`)
+  );
+  const numericRanges = criteria
+    .map((item) => {
+      if (typeof item.value !== "number") return null;
+      if (item.op === "<" || item.op === "<=") return [0, item.value];
+      if (item.op === ">" || item.op === ">=") return [item.value, Infinity];
+      if (item.op === "==") return [item.value, item.value];
+      return null;
+    })
+    .filter(Boolean);
+
+  if (!numericRanges.length) return true;
+
+  const incomeRanges = [[0, 99999], [100000, 300000], [300001, 500000], [500001, 800000], [800001, Infinity]];
+  const selectedRanges = options.reduce((ranges, option, index) => {
+    if (selectedValues.includes(option)) ranges.push(incomeRanges[index]);
+    return ranges;
+  }, []);
+
+  return selectedRanges.some(([selectedMin, selectedMax]) =>
+    numericRanges.some(([schemeMin, schemeMax]) => selectedMin <= schemeMax && schemeMin <= selectedMax)
+  );
+}
+
+function matchesSocialCategoryFilters(scheme, selectedValues, options) {
+  if (!selectedValues.length) return true;
+
+  const criteriaText = (scheme.eligibility_criteria || [])
+    .map((item) => `${item.field || ""} ${item.label || ""} ${item.value ?? ""}`)
+    .join(" ");
+  const categoryPatterns = [
+    /\bgeneral\b|\bunreserved\b/i,
+    /\bobc\b|other backward/i,
+    /\bsc\b|scheduled caste/i,
+    /\bst\b|scheduled tribe/i,
+    /\bews\b|economically weaker/i,
+  ];
+  const mentionedCategories = categoryPatterns.reduce((matches, pattern, index) => {
+    if (pattern.test(criteriaText)) matches.push(index);
+    return matches;
+  }, []);
+
+  // Do not treat schemes without category-specific criteria as a mismatch.
+  if (!mentionedCategories.length) return true;
+
+  return options.some((option, index) => selectedValues.includes(option) && mentionedCategories.includes(index));
+}
+
+function matchesOccupationFilters(scheme, selectedValues, options) {
+  if (!selectedValues.length) return true;
+
+  const criteriaText = (scheme.eligibility_criteria || [])
+    .map((item) => `${item.field || ""} ${item.label || ""} ${item.value ?? ""}`)
+    .join(" ");
+  const schemeText = [
+    scheme.name,
+    scheme.category,
+    scheme.department,
+    scheme.description,
+    ...(scheme.tags || []),
+    criteriaText,
+  ].join(" ").toLowerCase();
+  const occupationPatterns = [
+    /\bstudent\b|students|education|scholarship/i,
+    /\bfarmer\b|farmers|agriculture|kisan|crop/i,
+    /\bemployee\b|employment|worker|labour/i,
+    /\bunemployed\b|jobless/i,
+    /self.?employed|entrepreneur/i,
+    /\bbusiness\b|enterprise|startup|msme/i,
+    /homemaker|housewife/i,
+    /senior citizen|elderly|pension|retirement/i,
+  ];
+  const mentionedOccupations = occupationPatterns.reduce((matches, pattern, index) => {
+    if (pattern.test(schemeText)) matches.push(index);
+    return matches;
+  }, []);
+
+  // A missing occupation target is unknown, so keep that scheme in the results.
+  if (!mentionedOccupations.length) return true;
+
+  return options.some((option, index) => selectedValues.includes(option) && mentionedOccupations.includes(index));
+}
+
 function isSchemeSearchMatch(scheme, queryText) {
   if (!queryText) return true;
   const haystack = [
@@ -353,6 +512,8 @@ export default function Schemes({ lang = "en" }) {
     socialCategories: [],
     occupations: [],
   });
+  const categoryOptions = getCategoryOptions(lang);
+  const filterGroups = getFilterGroups(lang);
 
   async function loadSchemes(searchText = "") {
     setLoading(true);
@@ -419,11 +580,11 @@ export default function Schemes({ lang = "en" }) {
       const text = query.trim();
       const matchesQuery = !text || isSchemeSearchMatch(scheme, text);
       const matchesGov = matchesFilterValues(selectedFilters.governmentLevels, getSchemeLevel(scheme));
-      const matchesAge = selectedFilters.ageGroups.length === 0 || (scheme.age_criteria || []).some((criteria) => selectedFilters.ageGroups.includes(criteria.range || criteria.label || ""));
-      const matchesGender = selectedFilters.genders.length === 0 || (selectedFilters.genders.includes("All") ? true : (scheme.eligibility_criteria || []).some((criteria) => /gender|female|male/i.test(String(criteria.label || ""))));
-      const matchesIncome = selectedFilters.incomes.length === 0 || true;
-      const matchesSocial = selectedFilters.socialCategories.length === 0 || true;
-      const matchesOccupation = selectedFilters.occupations.length === 0 || true;
+      const matchesAge = matchesAgeFilters(scheme, selectedFilters.ageGroups, filterGroups.ageGroups);
+      const matchesGender = matchesGenderFilters(scheme, selectedFilters.genders, filterGroups.genders);
+      const matchesIncome = matchesIncomeFilters(scheme, selectedFilters.incomes, filterGroups.incomes);
+      const matchesSocial = matchesSocialCategoryFilters(scheme, selectedFilters.socialCategories, filterGroups.socialCategories);
+      const matchesOccupation = matchesOccupationFilters(scheme, selectedFilters.occupations, filterGroups.occupations);
 
       return matchesQuery && matchesGov && matchesAge && matchesGender && matchesIncome && matchesSocial && matchesOccupation;
     });
@@ -508,9 +669,6 @@ export default function Schemes({ lang = "en" }) {
     setExpandedId(scheme.id);
   };
 
-  const categoryOptions = getCategoryOptions(lang);
-  const filterGroups = getFilterGroups(lang);
-
   return (
     <div className="page schemes-page">
       <div className="page-header schemes-header">
@@ -529,15 +687,15 @@ export default function Schemes({ lang = "en" }) {
       <div className="scheme-summary-row">
         <div className="summary-pill">
           <span className="summary-label">{t(lang, "scheme_found_label")}</span>
-          <strong>{formatSchemeCount(filteredSchemes.length)}</strong>
+          <strong>{loading ? "…" : formatSchemeCount(filteredSchemes.length)}</strong>
         </div>
         <div className="summary-pill">
           <span className="summary-label">{t(lang, "scheme_recommended_label")}</span>
-          <strong>{recommendedSchemes.length}</strong>
+          <strong>{loading ? "…" : recommendedSchemes.length}</strong>
         </div>
         <div className="summary-pill">
           <span className="summary-label">{t(lang, "scheme_matching_label")}</span>
-          <strong>{formatSchemeCount(Math.max(0, filteredSchemes.length - recommendedSchemes.length))}</strong>
+          <strong>{loading ? "…" : formatSchemeCount(Math.max(0, filteredSchemes.length - recommendedSchemes.length))}</strong>
         </div>
       </div>
 
@@ -635,7 +793,7 @@ export default function Schemes({ lang = "en" }) {
       </div>
 
       <div className="sort-row">
-        <div className="results-meta">{formatSchemeCount(filteredSchemes.length)} {t(lang, "scheme_found_suffix")}</div>
+        <div className="results-meta">{loading ? "…" : `${formatSchemeCount(filteredSchemes.length)} ${t(lang, "scheme_found_suffix")}`}</div>
         <div className="sort-box">
           <label htmlFor="sort-schemes">{t(lang, "scheme_sort_by")}:</label>
           <select id="sort-schemes" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
